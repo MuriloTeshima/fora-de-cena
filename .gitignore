@@ -1,0 +1,7 @@
+*.exe
+*.zip
+*.sha256
+SHA256SUMS.txt
+.env*
+.meet_pairing_key
+user_settings.json
