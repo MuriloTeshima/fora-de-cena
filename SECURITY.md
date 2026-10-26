@@ -26,8 +26,8 @@ teste com câmera, driver e navegador reais.
   deve regenerar uma linha de confiança a partir de um arquivo alterado.
 - Não publicar segredos, preferências, capturas, ambientes virtuais ou arquivos
   de trabalho. O ZIP de fontes exclui modelos. O candidato binário inclui somente
-  os três modelos oficiais com hashes fixados; redistribuição aguarda revisão de
-  termos. Configurações e chave são criadas por usuário, fora da instalação.
+  os três modelos oficiais com hashes fixados e os avisos documentados em
+  THIRD_PARTY_NOTICES.md. Configurações e chave são criadas por usuário, fora da instalação.
 - O instalador não deve exigir administrador, registrar drivers, instalar
   extensão, iniciar com Windows ou abrir a câmera automaticamente. O OBS é
   instalado separadamente pelo usuário. Não orientar a desativar antivírus.
