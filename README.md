@@ -118,6 +118,24 @@ A segmentação pode falhar: desaparecer não garante anonimização.
 
 [Política de privacidade](PRIVACY.md) · [Segurança](SECURITY.md)
 
+## Código-fonte e desenvolvimento
+
+Os **fontes completos estão neste repositório**: aplicativo, efeitos, gestos,
+programa independente de saída, extensão opcional, testes e receitas de build.
+
+- [Executar pelos fontes e entender a arquitetura](DESENVOLVIMENTO.md)
+- [Gerar o instalador e o executável único](DISTRIBUIR.md)
+- [Baixar todos os fontes atuais em ZIP](https://github.com/arantes-gabs/fora-de-cena/archive/refs/heads/main.zip)
+- [Baixar o pacote de fontes 0.4.0](https://github.com/arantes-gabs/fora-de-cena/releases/download/v0.4.0/fora-de-cena-0.4.0-source.zip)
+
+Para estudar: `teleport_cam/` contém o aplicativo; `camera_output/` documenta a
+saída independente; `meet_extension/` contém a extensão. Veja `tests/`, `tools/`
+e `packaging/` para os testes e a construção. Não são necessárias credenciais.
+Modelos e dependências são instalados a partir das fontes oficiais.
+
+Para apenas usar, os downloads do início desta página continuam sendo a opção
+mais simples. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para trabalhar na sua cópia.
+
 ## Créditos e licenças
 
 O aplicativo principal mantém licença MIT. A saída para OBS é feita por um
