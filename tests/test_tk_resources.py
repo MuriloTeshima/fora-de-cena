@@ -43,3 +43,27 @@ class PackagedTkTests(unittest.TestCase):
                 archive.writestr('other-file.txt', '# no Tk resource')
             with self.assertRaises(FileNotFoundError):
                 verify_tk_data(root)
+
+    def test_macos_bundle_scripts_symlinked_into_resources_are_supported(self):
+        # In a .app, PyInstaller stores the scripts under Contents/Resources and
+        # links them into Contents/Frameworks (the _MEIPASS dir passed in here).
+        with tempfile.TemporaryDirectory() as folder:
+            contents = Path(folder) / 'Contents'
+            frameworks = contents / 'Frameworks'
+            resources = contents / 'Resources' / '_tk_data'
+            frameworks.mkdir(parents=True)
+            resources.mkdir(parents=True)
+            (resources / 'tk.tcl').write_text('# Tk resource')
+            (frameworks / '_tk_data').symlink_to(Path('..') / 'Resources' / '_tk_data')
+            self.assertEqual(verify_tk_data(frameworks), 'external-scripts')
+
+    def test_symlink_escaping_the_bundle_is_rejected(self):
+        with tempfile.TemporaryDirectory() as outside, tempfile.TemporaryDirectory() as folder:
+            external = Path(outside) / '_tk_data'
+            external.mkdir()
+            (external / 'tk.tcl').write_text('# outside the bundle')
+            frameworks = Path(folder) / 'Contents' / 'Frameworks'
+            frameworks.mkdir(parents=True)
+            (frameworks / '_tk_data').symlink_to(external)
+            with self.assertRaises(FileNotFoundError):
+                verify_tk_data(frameworks)
