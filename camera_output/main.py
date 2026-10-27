@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from contextlib import nullcontext
 import json
+import re
 from pathlib import Path
 import sys
 from typing import BinaryIO, Callable
@@ -61,7 +62,9 @@ def main() -> int:
     parser.add_argument('--width', type=int, default=1280)
     parser.add_argument('--height', type=int, default=720)
     parser.add_argument('--fps', type=int, default=30)
-    parser.add_argument('--backend', choices=('obs', 'unitycapture'), default='obs')
+    default_backend = 'v4l2loopback' if sys.platform.startswith('linux') else 'obs'
+    parser.add_argument('--backend', choices=('obs', 'unitycapture', 'v4l2loopback'), default=default_backend)
+    parser.add_argument('--device', help='Linux only: /dev/videoN output device')
     parser.add_argument('--dry-run', action='store_true', help='Validate the stream without opening a camera')
     parser.add_argument('--self-test', action='store_true')
     parser.add_argument('--license', action='store_true')
@@ -76,10 +79,16 @@ def main() -> int:
         if not (2 <= args.width <= 3840 and 2 <= args.height <= 2160 and
                 args.width % 2 == 0 and args.height % 2 == 0 and 1 <= args.fps <= 120):
             raise ValueError('Expected even dimensions up to 3840x2160 and fps in 1..120')
+        supported = ('v4l2loopback',) if sys.platform.startswith('linux') else ('obs',) if sys.platform == 'darwin' else ('obs', 'unitycapture')
+        if not args.dry_run and args.backend not in supported:
+            raise ValueError('Unsupported virtual camera backend for this operating system')
+        if args.device is not None and (args.backend != 'v4l2loopback' or re.fullmatch(r'/dev/video[0-9]{1,5}', args.device) is None):
+            raise ValueError('Expected a Linux virtual camera device /dev/videoN')
         import numpy as np
         import pyvirtualcam
         context = nullcontext(None) if args.dry_run else pyvirtualcam.Camera(
-            args.width, args.height, args.fps, fmt=pyvirtualcam.PixelFormat.BGR, backend=args.backend)
+            args.width, args.height, args.fps, fmt=pyvirtualcam.PixelFormat.BGR,
+            backend=args.backend, device=args.device)
         with context as camera:
             emit({'event': 'ready', 'device': 'Diagnostic stream (no camera)' if camera is None else camera.device,
                   'format': 'bgr24', 'width': args.width, 'height': args.height})

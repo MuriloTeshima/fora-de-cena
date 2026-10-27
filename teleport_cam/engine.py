@@ -1,10 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from queue import Empty, Queue
+from pathlib import Path
 from threading import Event, Lock, Thread
 from time import monotonic
 import cv2
 import numpy as np
+import sys
+from .devices import capture_backends, linux_loopback_device
+from .platform_support import default_output_label, output_choices, valid_linux_video_device
 from .virtual_output import VirtualOutput
 from .gesture import HoldGate
 from .gesture_guides import guide_for
@@ -23,9 +27,11 @@ class Settings:
     height: int = 720
     fps: int = 30
     hold: float = 1.0
-    virtual: str = 'obs'
+    virtual: str = field(default_factory=lambda: output_choices()[default_output_label()])
     effect: str = 'goku'
     dynamic_background: bool = False
+    camera_path: str = ''
+    virtual_device: str | None = None
 
 class Engine:
     def __init__(self, settings: Settings) -> None:
@@ -70,6 +76,24 @@ class Engine:
         with self.lock:
             self.message = text
 
+    def _prepare_segmenter(self, folder: Path) -> Segmenter:
+        segmenter=Segmenter(folder)
+        try:
+            # Pay lazy model/delegate initialization in the inference thread,
+            # before the first gesture; never publish this synthetic silhouette.
+            frame=np.zeros((self.settings.height,self.settings.width,3),np.uint8)
+            segmenter.capture(frame,0.0)
+            if self.effect_mode == 'anime':
+                height,width=frame.shape[:2]
+                mask=np.zeros((height,width),np.float32)
+                mask[height//4:height*3//4,width//3:width*2//3]=1
+                warm=EFFECTS['anime'](Silhouette(0.0,frame,mask),True,0.0)
+                warm.render(frame,frame,warm.duration*.35)
+        except Exception:
+            segmenter.close()
+            raise
+        return segmenter
+
     def _inference(self) -> None:
         detector: Detector | None = None
         segmenter: Segmenter | None = None
@@ -83,16 +107,16 @@ class Engine:
             if self.effect_mode in EFFECTS or self.dynamic_background:
                 segment_attempted=True
                 try:
-                    segmenter=Segmenter(folder)
+                    segmenter=self._prepare_segmenter(folder)
                 except Exception as error:
-                    self.effect_error=f'Recorte indisponível: {error}. Usando fundo salvo e corte instantâneo.'
+                    self.effect_error=f'Recorte indisponível: {error}. Escolha Instantâneo ou reinicie a câmera para tentar novamente.'
             previous=-1.0
             previous_mask=-1.0
             while not self.stop.is_set():
                 began=monotonic()
                 if not segment_attempted and (self.effect_mode in EFFECTS or self.dynamic_background):
                     segment_attempted=True
-                    try: segmenter=Segmenter(folder)
+                    try: segmenter=self._prepare_segmenter(folder)
                     except Exception as error: self.effect_error=f'Recorte indisponível: {error}. Usando fundo estático.'
                 with self.lock:
                     raw=self.raw
@@ -120,7 +144,7 @@ class Engine:
                             with self.lock:
                                 self.silhouette=silhouette
                         except Exception as error:
-                            self.effect_error=f'Recorte indisponível: {error}. Será usado corte instantâneo.'
+                            self.effect_error=f'Recorte indisponível: {error}. Novos efeitos não serão aplicados; Restaurar continua disponível.'
                             segmenter.close()
                             segmenter=None
                 rate=30 if guide_for(self.effect_mode).motion else 15
@@ -130,12 +154,20 @@ class Engine:
             if segmenter is not None: segmenter.close()
 
     def _open_capture(self) -> cv2.VideoCapture:
-        # A named DirectShow index must not be reused against a different backend.
-        backends=(self.settings.camera_backend,) if self.settings.camera_backend is not None else (cv2.CAP_DSHOW,cv2.CAP_MSMF)
+        # Device indices belong to their enumerated backend; never reuse in another.
+        backends=(self.settings.camera_backend,) if self.settings.camera_backend is not None else capture_backends()
+        source: int | str = self.settings.camera
+        if sys.platform.startswith('linux') and self.settings.camera_path:
+            if not valid_linux_video_device(self.settings.camera_path):
+                raise ValueError('Caminho de webcam Linux inválido.')
+            if self.settings.virtual != 'off' and linux_loopback_device(self.settings.camera_path):
+                raise ValueError('Selecione uma webcam física como entrada para evitar um ciclo de vídeo.')
+            source = self.settings.camera_path
         for backend in backends:
-            capture=cv2.VideoCapture(self.settings.camera,backend)
+            capture=cv2.VideoCapture(source,backend)
             if capture.isOpened():
-                capture.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'MJPG'))
+                if sys.platform != 'darwin':
+                    capture.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'MJPG'))
                 capture.set(cv2.CAP_PROP_FRAME_WIDTH,self.settings.width)
                 capture.set(cv2.CAP_PROP_FRAME_HEIGHT,self.settings.height)
                 capture.set(cv2.CAP_PROP_FPS,self.settings.fps)
@@ -147,7 +179,8 @@ class Engine:
     def _open_virtual(self,width:int,height:int) -> VirtualOutput | None:
         if self.settings.virtual=='off': return None
         try:
-            virtual=VirtualOutput(width,height,self.settings.fps,self.settings.virtual)
+            virtual=VirtualOutput(width,height,self.settings.fps,self.settings.virtual,
+                                  device=self.settings.virtual_device)
             self.virtual_status=f'Saída: {virtual.device} · {width} × {height}'
             return virtual
         except (RuntimeError,OSError,ValueError) as error:
@@ -278,16 +311,26 @@ class Engine:
                     and scene.pending is None and scene.background is not None and effect is None and requested is None)
                 self.progress=(motion_progress if guide.motion and now-observed_at<.3 and observed_effect==self.effect_mode else 0) if guide.motion else gate.progress
                 if requested is not None:
-                    wants_goku=self.effect_mode in EFFECTS and not self.effect_error
+                    wants_goku=self.effect_mode in EFFECTS
                     fresh=(silhouette is not None and now-silhouette.captured_at<=0.35 and silhouette.frame.shape==frame.shape)
-                    if wants_goku and not fresh and now-requested<0.8:
+                    if wants_goku and self.effect_error:
+                        requested=None
+                        gate.reset()
+                        self._set_message('Efeito não aplicado: recorte indisponível. Use Restaurar ou escolha Instantâneo.')
+                    elif wants_goku and not fresh and now-requested<0.8:
                         self._set_message('Preparando recorte para o efeito…')
+                    elif wants_goku and not fresh:
+                        requested=None
+                        gate.reset()
+                        self._set_message('Recorte ainda não ficou pronto. A imagem foi preservada; tente o efeito novamente.')
                     else:
                         target=not scene.hidden
                         if wants_goku and fresh and silhouette is not None:
                             try:
                                 effect_class=EFFECTS[self.effect_mode]
                                 effect=effect_class(silhouette,target,now)
+                                # Setup latency must not consume the animation.
+                                effect.started=now=monotonic()
                                 scene.toggle()
                                 self._set_message('Efeito em andamento…')
                             except ValueError as error:

@@ -1,0 +1,76 @@
+{
+  "status": "macos_arm64_built_synthetic_validated_physical_tests_pending",
+  "distribution_ready": false,
+  "source_distribution": {
+    "package": "opencv-contrib-python",
+    "version": "4.14.0.94",
+    "filename": "opencv_contrib_python-4.14.0.94.tar.gz",
+    "sha256": "f2e58020b9f54d68b49553a161327ae1bbc47da68e147231d444c915ee4cab4c",
+    "url": "https://files.pythonhosted.org/packages/eb/59/bc43b7d900de515f614fac9de8088be420a4d96fb019c9d49b53f637606e/opencv_contrib_python-4.14.0.94.tar.gz"
+  },
+  "package_environment": {
+    "ENABLE_CONTRIB": "1",
+    "ENABLE_HEADLESS": "0"
+  },
+  "cmake_common_candidate": {
+    "WITH_FFMPEG": "OFF",
+    "WITH_GSTREAMER": "OFF",
+    "WITH_QT": "OFF",
+    "WITH_GTK": "OFF",
+    "BUILD_opencv_highgui": "OFF",
+    "BUILD_TESTS": "OFF",
+    "BUILD_PERF_TESTS": "OFF",
+    "BUILD_EXAMPLES": "OFF",
+    "OPENCV_ENABLE_NONFREE": "OFF",
+    "WITH_JPEG": "ON",
+    "BUILD_LIST": "core,imgproc,imgcodecs,videoio,python3"
+  },
+  "cmake_platform_candidates": {
+    "darwin": {
+      "WITH_AVFOUNDATION": "ON",
+      "WITH_V4L": "OFF"
+    },
+    "linux": {
+      "WITH_AVFOUNDATION": "OFF",
+      "WITH_V4L": "ON"
+    }
+  },
+  "required_review": [
+    "Resolve and pin build tooling from the exact source distribution in a separate build environment.",
+    "Verify source SHA256 before executing build scripts; do not reuse cached wheels for a different CMAKE_ARGS profile.",
+    "Keep exactly one cv2 provider and satisfy MediaPipe opencv-contrib-python metadata; do not install headless alongside it.",
+    "Inspect wheel version, license notices and complete native dependency graph, not only FFmpeg build flags.",
+    "Record source/build provenance and wheel SHA256 before installing only in a separate application test environment.",
+    "Run full tests and source/frozen diagnostics on each native platform, plus actual cameras including MJPEG USB devices.",
+    "Recheck deployment minimum and all other license obligations; do not mark MediaPipe network verification complete."
+  ],
+  "profile_id": "fdc-minimal-macos-arm64-v1",
+  "cmake_additions": {
+    "WITH_AVIF": "OFF",
+    "WITH_WEBP": "OFF",
+    "WITH_TIFF": "OFF",
+    "WITH_OPENEXR": "OFF",
+    "WITH_OPENJPEG": "OFF",
+    "WITH_JASPER": "OFF",
+    "WITH_JPEGXL": "OFF",
+    "WITH_ITT": "OFF",
+    "WITH_OPENCL": "OFF",
+    "WITH_LAPACK": "OFF",
+    "WITH_EIGEN": "OFF",
+    "BUILD_JPEG": "ON",
+    "BUILD_PNG": "ON",
+    "BUILD_ZLIB": "ON",
+    "WITH_PNG": "ON",
+    "BUILD_opencv_apps": "OFF",
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_OSX_ARCHITECTURES": "arm64",
+    "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
+    "BUILD_INFO_SKIP_TIMESTAMP": "ON",
+    "BUILD_INFO_SKIP_EXTRA_MODULES": "ON",
+    "BUILD_INFO_SKIP_SYSTEM_VERSION": "ON",
+    "PYTHON3_LIMITED_API": "ON",
+    "CMAKE_SKIP_RPATH": "ON"
+  },
+  "addition_rationale": "Exact source CMake options reviewed: retain built-in static JPEG/PNG/zlib and AVFoundation; disable unused image formats, trace/OpenCL/LAPACK/Eigen and optional external libraries. Entire bundle minimum remains audited.",
+  "source_patch_rationale": "Remap private paths in embedded build information; skip manual typing refinements only for symbols in optional modules absent from BUILD_LIST."
+}

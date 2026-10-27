@@ -14,7 +14,7 @@ mediapipe==1.1.1
 numpy==2.5.4
 opencv-contrib-python==4.14.0.94
 packaging==26.3
-pillow==12.3.0
+pillow==13.0.0
 pycparser==3.12
 pyparsing==3.3.3
 python-dateutil==3.0.0
@@ -22,3 +22,10 @@ pyvirtualcam==0.15.0
 six==1.17.0
 sounddevice==0.5.6
 tzdata==2026.5
+# Dependências adicionais da enumeração AVFoundation; ignoradas nos outros sistemas.
+pyobjc-core==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-AVFoundation==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreAudio==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreMedia==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'

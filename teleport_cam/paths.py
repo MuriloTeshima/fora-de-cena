@@ -13,13 +13,19 @@ def data_root() -> Path:
     # Preserve the existing development installation and its extension pairing.
     if not getattr(sys, 'frozen', False):
         return Path(__file__).resolve().parents[1]
+    if sys.platform == 'darwin':
+        return Path.home() / 'Library' / 'Application Support' / 'ForaDeCena'
+    if sys.platform.startswith('linux'):
+        configured = Path(os.environ.get('XDG_DATA_HOME', ''))
+        base = configured if configured.is_absolute() else Path.home() / '.local' / 'share'
+        return base / 'fora-de-cena'
     local = os.environ.get('LOCALAPPDATA')
     return (Path(local) if local else Path.home() / 'AppData' / 'Local') / 'ForaDeCena'
 
 
 def data_file(name: str) -> Path:
     folder = data_root()
-    folder.mkdir(parents=True, exist_ok=True)
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     return folder / name
 
 

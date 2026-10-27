@@ -8,7 +8,8 @@ na [Release](https://github.com/arantes-gabs/fora-de-cena/releases/tag/v0.4.0).
 ## Preparar o ambiente
 
 Requisitos: Windows x64, Python **3.14 x64 com Tcl/Tk** e Git para clonar. O suporte
-a macOS e Linux ainda não foi implementado. Node.js 22 ou superior é necessário
+a macOS e Linux está em adaptação experimental: consulte [MAC_LINUX.md](MAC_LINUX.md)
+para os requisitos e builds nativos. Node.js 22 ou superior é necessário
 somente para os testes da extensão; não faz parte do aplicativo distribuído.
 
 ```powershell

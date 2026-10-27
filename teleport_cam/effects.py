@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import sys
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -22,7 +23,8 @@ class TeleportEffect:
     """One captured silhouette; all animation uses elapsed time, never frame count."""
     duration = 0.48
 
-    def __init__(self, subject: Silhouette, hidden_target: bool, started: float) -> None:
+    def __init__(self, subject: Silhouette, hidden_target: bool, started: float,
+                 *, max_resolution: int | None = None) -> None:
         if subject.mask.shape != subject.frame.shape[:2] or not np.isfinite(subject.mask).all():
             raise ValueError('Recorte de pessoa inválido.')
         self.subject = subject
@@ -38,9 +40,15 @@ class TeleportEffect:
         self.box = (max(0, x-pad), max(0, y-pad), min(iw, x+w+pad), min(ih, y+h+pad))
         left, top, right, bottom = self.box
         self.person = subject.frame[top:bottom,left:right].copy()
-        self.alpha = cv2.GaussianBlur(mask[top:bottom,left:right], (0,0), 1.1)
+        alpha = mask[top:bottom,left:right]
+        if max_resolution is not None and max(alpha.shape) > max_resolution:
+            scale = max_resolution / max(alpha.shape)
+            size = (max(1,round(alpha.shape[1]*scale)),max(1,round(alpha.shape[0]*scale)))
+            self.person = cv2.resize(self.person,size,interpolation=cv2.INTER_AREA)
+            alpha = cv2.resize(alpha,size,interpolation=cv2.INTER_AREA)
+        self.alpha = cv2.GaussianBlur(alpha, (0,0), 1.1)
         rh, rw = self.alpha.shape
-        self.yy, self.xx = np.mgrid[:rh,:rw].astype(np.float32)
+        self.yy, self.xx = np.indices((rh,rw),dtype=np.float32)
         rng = np.random.default_rng(47)
         strips = rng.uniform(0,1,(1,max(2,rw//4))).astype(np.float32)
         self.strips = cv2.resize(strips,(rw,rh),interpolation=cv2.INTER_NEAREST)
@@ -98,7 +106,9 @@ class AnimeTeleportEffect(TeleportEffect):
     duration=0.42
 
     def __init__(self,subject:Silhouette,hidden_target:bool,started:float) -> None:
-        super().__init__(subject,hidden_target,started)
+        # Bound procedural work on Apple Silicon while retaining full-resolution
+        # capture, output and background. Other platforms retain their detail.
+        super().__init__(subject,hidden_target,started,max_resolution=480 if sys.platform=='darwin' else None)
         # Only the brief captured subject is stylized; the camera feed remains natural.
         softened=cv2.bilateralFilter(self.person,5,35,35)
         self.person=np.clip((softened.astype(np.uint16)//40)*40+20,0,255).astype(np.uint8)
@@ -106,6 +116,8 @@ class AnimeTeleportEffect(TeleportEffect):
         self.ink=(cv2.Canny(grey,55,130).astype(np.float32)/255)*self.alpha
         self.contour=cv2.morphologyEx((self.alpha>0.45).astype(np.uint8),cv2.MORPH_GRADIENT,np.ones((3,3),np.uint8)).astype(np.float32)
         self.trail=cv2.GaussianBlur(self.alpha,(1,41),0)
+        self._phase=self.yy[:,:1]*.045
+        self._ink_factor=1-self.ink[:,:,None]*.6
 
     def render(self,live:Frame,background:Frame,now:float) -> Frame:
         if live.shape!=background.shape or live.shape!=self.subject.frame.shape:
@@ -117,18 +129,26 @@ class AnimeTeleportEffect(TeleportEffect):
         energy=max(0.,float(np.sin(np.pi*u)))
         left,top,right,bottom=self.box
         result=background.copy()
-        roi=result[top:bottom,left:right].astype(np.float32)
+        # Compose foreground and transmission separately. Upscaling these layers
+        # avoids resizing/blurring the full-resolution background inside the box.
+        foreground=np.zeros((*self.alpha.shape,3),np.float32)
+        transmission=np.ones(self.alpha.shape,np.float32)
+        def over(color,alpha):
+            attenuation=1-alpha
+            foreground[:]*=attenuation[:,:,None]
+            foreground[:]+=color*alpha[:,:,None]
+            transmission[:]*=attenuation
         # A brief anticipation, a decisive disappearance, then only the echo.
         body=1-smooth((u-0.14)/0.28)
-        drift=np.sin(self.yy*.045+u*30)*energy*min(9,self.alpha.shape[1]*.03)
+        drift=np.sin(self._phase+u*30)*energy*min(9,self.alpha.shape[1]*.03)
         stretched=cv2.remap(self.person,self.xx+drift,self.yy,cv2.INTER_LINEAR,borderMode=cv2.BORDER_REFLECT_101)
-        cel=stretched.astype(np.float32)*(1-self.ink[:,:,None]*.6)
+        cel=stretched.astype(np.float32)*self._ink_factor
         alpha=self.alpha*body
-        roi=roi*(1-alpha[:,:,None])+cel*alpha[:,:,None]
+        over(cel,alpha)
         outline=self.contour*body*.85
-        roi=roi*(1-outline[:,:,None])+np.array((28,25,24),np.float32)*outline[:,:,None]
+        over(np.array((28,25,24),np.float32),outline)
         echo=self.trail*max(0.,1-abs(u-.43)/.4)*.20
-        roi=roi*(1-echo[:,:,None])+np.array((250,211,150),np.float32)*echo[:,:,None]
+        over(np.array((250,211,150),np.float32),echo)
         lines=np.zeros(self.alpha.shape,np.float32)
         rh,rw=lines.shape
         for col,y0,y1,speed,width in self.streaks:
@@ -137,8 +157,17 @@ class AnimeTeleportEffect(TeleportEffect):
             cv2.line(lines,(col,end-length),(col,end),1.,width,cv2.LINE_AA)
         lines*=self.halo*energy
         dark=np.clip(cv2.GaussianBlur(lines,(3,1),0)*.45,0,.5)
-        roi*=1-dark[:,:,None]
-        bright=np.clip(lines*.95,0,.95)[:,:,None]
-        roi=roi*(1-bright)+np.array((255,244,220),np.float32)*bright
-        result[top:bottom,left:right]=np.clip(roi,0,255).astype(np.uint8)
+        foreground*=1-dark[:,:,None]
+        transmission*=1-dark
+        bright=np.clip(lines*.95,0,.95)
+        over(np.array((255,244,220),np.float32),bright)
+        size=(right-left,bottom-top)
+        if self.alpha.shape != (size[1],size[0]):
+            foreground=cv2.resize(foreground,size,interpolation=cv2.INTER_LINEAR)
+            transmission=cv2.resize(transmission,size,interpolation=cv2.INTER_LINEAR)
+        roi=result[top:bottom,left:right].astype(np.float32)
+        roi*=transmission[:,:,None]
+        roi+=foreground
+        np.clip(roi,0,255,out=roi)
+        result[top:bottom,left:right]=roi.astype(np.uint8)
         return result

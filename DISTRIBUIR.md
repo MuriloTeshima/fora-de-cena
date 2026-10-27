@@ -85,3 +85,10 @@ executáveis. Ter fontes do app no Git não dispensa os fontes dos componentes G
 Revise arquivos e checksums antes de publicar. Novos builds precisam de seus
 próprios testes físicos; aprovação de uma versão anterior não valida uma nova.
 Não publique chaves, dados de usuário, ambientes virtuais ou pastas de trabalho.
+
+## Mac e Linux em desenvolvimento
+
+As receitas experimentais, requisitos, testes físicos pendentes e limites de
+redistribuição das bibliotecas nativas estão em [MAC_LINUX.md](MAC_LINUX.md).
+`tools/build_unix.py` gera candidatos locais, sem publicação. Não promova um
+candidato com `distribution_ready: false` como versão final.

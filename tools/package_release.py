@@ -11,8 +11,12 @@ FILES = (
     '.gitignore', '.gitattributes', 'LICENSE', 'README.md', 'COMO_USAR.md',
     'GUIA_RAPIDO.html', 'PRIVACY.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md',
     'CONTRIBUTING.md', 'CHANGELOG.md', 'DESENVOLVIMENTO.md', 'DISTRIBUIR.md',
-    'NOTAS_DA_VERSAO.md', 'main.py', 'setup_models.py', 'smoke_test.py',
+    'NOTAS_DA_VERSAO.md', 'MAC_LINUX.md', 'OPENCV_ENXUTO_MAC.md', 'main.py', 'setup_models.py', 'smoke_test.py',
+    '.github/workflows/native-candidates.yml',
     'requirements.txt', 'requirements.lock.txt', 'requirements-build.txt',
+    'requirements-opencv-build.txt', 'packaging/opencv-minimal-profile.json',
+    'packaging/opencv-minimal-source.patch',
+    'packaging/mediapipe-intel-profile.json', 'packaging/mediapipe-intel-source.patch', 'MAC_INTEL.md', 'MULTIPLATAFORMA.md',
     'INICIAR.bat', 'INSTALAR.bat', 'camera_output/LICENSE',
 )
 FOLDERS = {

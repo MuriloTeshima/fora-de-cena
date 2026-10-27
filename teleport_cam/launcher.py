@@ -14,17 +14,27 @@ def self_test() -> dict[str, object]:
     import cv2
     import numpy as np
     import customtkinter
-    from PIL import Image
+    from PIL import Image, ImageFont
+    import tkinter as tk
     from .app import App
     from .vision import Detector, Segmenter
     from .gesture_guides import GUIDES
     from .model_assets import MODEL_ASSETS
+    from .effects import AnimeTeleportEffect, Silhouette
     from setup_models import verify_model
     from .virtual_output import VirtualOutput, output_command, output_environment
     import subprocess
     import zlib
 
     root = resource_root()
+    # Tcl() creates an interpreter without a window, camera or Meet bridge.
+    tcl_version = tk.Tcl().eval('info patchlevel')
+    font_root = Path(customtkinter.__file__).resolve().parent / 'assets' / 'fonts'
+    for name in ('Roboto-Regular.ttf', 'Roboto-Medium.ttf'):
+        ImageFont.truetype(str(font_root / 'Roboto' / name), 12)
+    if getattr(sys, 'frozen', False):
+        if not (root / '_tk_data' / 'tk.tcl').is_file():
+            raise FileNotFoundError('Dados Tk da interface')
     for name, (_, digest) in MODEL_ASSETS.items():
         verify_model(root / 'models' / name, digest)
     for name in {guide.image for guide in GUIDES.values()}:
@@ -51,6 +61,16 @@ def self_test() -> dict[str, object]:
             raise ValueError('Dimensões do recorte inválidas')
     finally:
         segmenter.close()
+    # Exercise the packaged compositor, including the bounded macOS path.
+    backdrop=np.full((720,1280,3),40,np.uint8)
+    mask=np.zeros((720,1280),np.float32)
+    mask[30:700,300:980]=1
+    live=backdrop.copy()
+    live[mask>0]=(80,140,210)
+    effect=AnimeTeleportEffect(Silhouette(10.0,live,mask),True,10.0)
+    composed=effect.render(live,backdrop,10.2)
+    if composed.shape!=live.shape or np.array_equal(composed,live) or np.array_equal(composed,backdrop):
+        raise RuntimeError('O compositor de teleporte não produziu um quadro intermediário.')
     worker = subprocess.run(output_command() + ['--self-test'], capture_output=True, timeout=30, check=True,
                             env=output_environment(), creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
     worker_report = json.loads(worker.stdout)
@@ -69,8 +89,10 @@ def self_test() -> dict[str, object]:
     signature = json.loads(manifest_path.read_text(encoding='utf-8')).get('runtime_signature') if manifest_path.is_file() else None
     return {'ok': True, 'version': __version__, 'frozen': bool(getattr(sys, 'frozen', False)),
             'runtime_signature': signature,
-            'checks': ['imports', 'assets', 'model_hashes', 'hand_face_inference', 'segmentation', 'independent_output_process', 'rawvideo_fidelity'],
-            'camera_opened': False, 'network_used': False, 'virtual_output_tested': False}
+            'tcl_version': tcl_version,
+            'checks': ['imports', 'tcl_runtime', 'tk_data', 'fonts', 'assets', 'model_hashes', 'hand_face_inference', 'segmentation', 'teleport_compositor', 'independent_output_process', 'rawvideo_fidelity'],
+            'camera_opened': False, 'application_network_requests': False,
+            'dependency_network_verified': False, 'virtual_output_tested': False}
 
 
 def main() -> int:
@@ -84,6 +106,7 @@ def main() -> int:
         except Exception as error:
             report = {'ok': False, 'error': type(error).__name__, 'detail': str(error)}
         if args.report:
+            args.report.parent.mkdir(parents=True, exist_ok=True)
             args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         elif sys.stdout is not None:
             print(json.dumps(report, ensure_ascii=False))

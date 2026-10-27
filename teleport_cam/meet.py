@@ -9,9 +9,35 @@ import hmac
 import json
 import re
 import secrets
+import os
+import stat
 from .paths import data_file
 
 MEETING=re.compile(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$')
+
+
+def pairing_token(path: Path) -> str:
+    """Create private user state atomically; never follow a redirected key file."""
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        with os.fdopen(descriptor, 'r', encoding='utf-8') as source:
+            info = os.fstat(source.fileno())
+            if path.is_symlink() or not stat.S_ISREG(info.st_mode):
+                raise ValueError('Arquivo de pareamento inválido.')
+            if os.name != 'nt':
+                if info.st_uid != os.getuid():
+                    raise ValueError('O pareamento pertence a outro usuário.')
+                os.fchmod(source.fileno(), 0o600)
+            token = source.read(257).strip()
+    else:
+        token = secrets.token_urlsafe(32)
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as destination:
+            destination.write(token)
+    if re.fullmatch(r'[A-Za-z0-9_-]{32,256}', token) is None:
+        raise ValueError('Código de conexão inválido. Remova .meet_pairing_key e reinicie.')
+    return token
 
 @dataclass(frozen=True)
 class MeetTarget:
@@ -47,11 +73,7 @@ class MeetBridge:
         self.lock=Lock()
         if token is None:
             key_path=key_path or data_file('.meet_pairing_key')
-            if key_path.exists(): token=key_path.read_text(encoding='utf-8').strip()
-            else:
-                token=secrets.token_urlsafe(32)
-                key_path.write_text(token,encoding='utf-8')
-            if len(token)<32: raise ValueError('Código de conexão inválido. Remova .meet_pairing_key e reinicie.')
+            token=pairing_token(key_path)
         self.token=token
         self.target:MeetTarget | None=None
         self.last_seen=0.0

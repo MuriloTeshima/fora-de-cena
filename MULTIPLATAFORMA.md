@@ -1,0 +1,62 @@
+# Mac e Linux — acompanhamento dos testes
+
+Esta branch (`testing/mac-linux`) contém trabalho experimental. Os downloads
+publicados em `v0.4.0` continuam sendo os pacotes Windows existentes. Não há
+anúncio de suporte nativo aprovado para Mac/Linux nem nova tag de versão.
+
+## Matriz de validação
+
+| Alvo | Saída prevista | Estado antes do primeiro CI |
+| --- | --- | --- |
+| Windows x64 | EXE portátil e instalador por usuário | Revalidar fontes novos e executáveis |
+| Mac Apple Silicon | APP dentro de DMG | Correções recebidas/testadas no M1; reproduzir build e autoteste no CI |
+| Mac Intel x86_64 | APP dentro de DMG | Compilação MediaPipe própria experimental; ainda sem build nativo confirmado |
+| Linux x86_64 | TAR.GZ com executável e recursos | Build, autoteste e teste físico pendentes |
+| Linux ARM64 | TAR.GZ com executável e recursos | Build, autoteste e teste físico pendentes |
+
+O estado será atualizado com resultados reais e links das execuções. Check verde
+de CI não certifica câmera, chamada ou desempenho em todos os computadores.
+
+## Organização
+
+- Fontes: `teleport_cam/`, `camera_output/` e `meet_extension/`.
+- Testes automatizados: `tests/`.
+- Receitas, perfis e avisos de terceiros: `tools/`, `packaging/` e requirements.
+- Configuração CI: `.github/workflows/native-candidates.yml`.
+- Preparação e limitações: [MAC_LINUX.md](MAC_LINUX.md), [MAC_INTEL.md](MAC_INTEL.md)
+  e [OPENCV_ENXUTO_MAC.md](OPENCV_ENXUTO_MAC.md).
+
+Preferências, pareamento Meet, ambientes Python, modelos baixados, logs,
+temporários, binários e materiais pessoais não entram no Git. Nenhum workflow
+usa certificados pessoais, secrets ou runners pagos. As actions usadas estão
+fixadas por SHA e o token do CI tem somente leitura.
+
+## Execução dos testes
+
+Pushes autorizados em `testing/mac-linux` executam instalação limpa, testes e
+compilações nos runners padrão do repositório público. Nenhum PR ou push na
+main dispara esse fluxo. A execução manual exige que o workflow também esteja
+na branch padrão, conforme o funcionamento do GitHub; isso não foi usado como
+motivo para enviar código experimental à main.
+
+Pacotes gerados ficam apenas no runner, são autotestados e descartados ao final.
+Não há upload de artifacts ou criação de Releases, evitando consumo de storage
+de artifacts. Esse primeiro CI verifica a reprodução do build; disponibilizar
+um candidato para testes físicos é uma etapa posterior, com revisão das licenças
+e autorização do proprietário.
+
+## Critérios para uma nova versão
+
+1. Build e testes dos alvos anunciados sem erro, incluindo autoteste do pacote
+   fora do ambiente Python de desenvolvimento.
+2. Licenças, avisos e fontes correspondentes das bibliotecas nativas revisados.
+3. Verificação de rede das dependências, especialmente MediaPipe, documentada.
+4. Testes reais no hardware anunciado: câmera, fundo, gestos, efeitos,
+   restauração, OBS/câmera virtual e chamada com outro participante.
+5. Documentação, versão interna, nomes dos pacotes e hashes consistentes.
+
+Somente depois desses critérios será definida uma nova versão/tag e uma Release.
+A tag `v0.4.0` não será movida ou sobrescrita. A primeira candidata pode usar
+uma versão como `v0.5.0-beta.1`; o lançamento dependerá da validação e indicará
+somente as plataformas efetivamente aprovadas. Intel pode seguir experimental
+se exigir mais trabalho. `distribution_ready=false` permanece durante os testes.

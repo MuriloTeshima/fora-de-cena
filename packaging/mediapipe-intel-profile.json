@@ -1,0 +1,28 @@
+{
+  "profile_id": "fdc-mediapipe-1.1.1-macos-x86_64-experimental-v1",
+  "distribution_ready": false,
+  "native_build_verified": false,
+  "version": "1.1.1",
+  "architecture": "x86_64",
+  "minimum_macos": "15.0",
+  "source_repository": "https://github.com/google-ai-edge/mediapipe.git",
+  "source_tag": "v1.1.1",
+  "source_commit": "50505c8312c7eacb1bd411cecdc4cc9fd08d53cb",
+  "bazel": {
+    "version": "7.7.0",
+    "url": "https://github.com/bazelbuild/bazel/releases/download/7.7.0/bazel-7.7.0-darwin-x86_64",
+    "sha256": "5b254d6c51081502938835969be160e62aeb8799e5b00b2d3acfa0465d6ae7c8"
+  },
+  "python_template": {
+    "filename": "mediapipe-1.1.1-py3-none-macosx_11_0_arm64.whl",
+    "url": "https://files.pythonhosted.org/packages/23/22/d113d29c97a4c9459ece90d9b70e81e790550f4ee7d0574042b0b9306ff9/mediapipe-1.1.1-py3-none-macosx_11_0_arm64.whl",
+    "sha256": "b22892847fbc6201959d20b2b9a1c9c34cda991e072f58ab0c38008dc789d4b1"
+  },
+  "build_target": "//mediapipe/tasks/c:mediapipe_source",
+  "native_member": "mediapipe/tasks/c/libmediapipe.dylib",
+  "wheel_filename": "mediapipe-1.1.1-1fdcintel-py3-none-macosx_15_0_x86_64.whl",
+  "rationale": "Build the current C API directly for Intel. Keep the official Python files and notices, replace the entire native library, regenerate wheel tags and RECORD. Never relabel an ARM binary as Intel or downgrade runtime pins. Native compilation and integration tests are pending.",
+  "source_patch_sha256": "c9f8dfd70a862c74c3a40c09d869c9daa9145b8bcc6de6e93362ed3e6c2b7d9c",
+  "source_build_file_sha256": "6f5e8a91544bdd6214a3dce0dbc186aded0c805eee2f301e1fbff2211f818755",
+  "private_opencv": "Static core/imgproc/imgcodecs/video/features2d/flann/calib3d, external codecs/GUI disabled. Application cv2 remains the separately installed official wheel."
+}

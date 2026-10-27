@@ -2,8 +2,11 @@
 
 - A webcam só abre ao clicar em Iniciar câmera.
 - Captura, gesto, recorte, fundo e efeitos são processados localmente.
-- Este código não grava nem envia frames, fotos ou áudio. Não usa telemetria,
-  anúncios, APIs pagas ou modelos em nuvem. O aplicativo não abre o microfone.
+- Este código não grava nem envia frames, fotos ou áudio. Não implementa telemetria
+  própria, anúncios, APIs pagas ou modelos em nuvem. O aplicativo não abre o microfone.
+  O aviso do fornecedor MediaPipe menciona métricas de uso/desempenho. A atividade
+  de rede dessa dependência ainda requer verificação específica; processamento
+  local de imagens não é uma garantia de ausência de toda conexão externa.
 - O fundo preparado fica em memória durante a sessão. Não é salvo como foto.
 - user_settings.json guarda escolhas de câmera/qualidade/efeito; pode incluir
   o identificador local da webcam. Não faz parte do Git ou pacote.
@@ -13,6 +16,10 @@
 - No executável, esses arquivos ficam em `%LOCALAPPDATA%\ForaDeCena`, separados
   da instalação e preservados ao desinstalar. Executando os fontes, continuam na
   pasta do projeto. O pacote nunca inclui as preferências ou a chave do criador.
+- Nos candidatos Mac/Linux, as pastas são respectivamente
+  `~/Library/Application Support/ForaDeCena` e `$XDG_DATA_HOME/fora-de-cena`
+  (padrão `~/.local/share/fora-de-cena`). Em Unix, uma nova pasta de dados tem
+  modo 0700 e a chave de pareamento é criada com modo 0600.
 - O executável único extrai recursos em uma pasta temporária e remove essa pasta
   ao encerrar normalmente. A extensão opcional é exportada para a pasta de dados
   somente quando você solicita abrir sua pasta; não é instalada no navegador.

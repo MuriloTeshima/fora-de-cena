@@ -1,0 +1,90 @@
+--- a/third_party/BUILD
++++ b/third_party/BUILD
+@@ -151,9 +151,8 @@
+ OPENCV_MODULES = [
+     "calib3d",
+     "features2d",
+-    "highgui",
++    "flann",
+     "video",
+-    "videoio",
+     "imgcodecs",
+     "imgproc",
+     "core",
+@@ -163,7 +162,7 @@
+ # still only builds the shared libraries, so we have to choose one or the
+ # other. We build shared libraries by default, but this variable can be used
+ # to switch to static libraries.
+-OPENCV_SHARED_LIBS = True
++OPENCV_SHARED_LIBS = False
+ 
+ OPENCV_SO_VERSION = "3.4"
+ 
+@@ -182,14 +181,26 @@
+         "BUILD_SHARED_LIBS": "ON" if OPENCV_SHARED_LIBS else "OFF",
+         "WITH_ITT": "OFF",
+         "WITH_JASPER": "OFF",
+-        "WITH_JPEG": "ON",
+-        "WITH_PNG": "ON",
+-        "WITH_TIFF": "ON",
++        "WITH_JPEG": "OFF",
++        "WITH_PNG": "OFF",
++        "WITH_TIFF": "OFF",
+         "WITH_OPENCL": "OFF",
+         "WITH_WEBP": "OFF",
++        "WITH_FFMPEG": "OFF",
++        "WITH_GSTREAMER": "OFF",
++        "WITH_QT": "OFF",
++        "WITH_GTK": "OFF",
++        "WITH_OPENEXR": "OFF",
++        "WITH_OPENJPEG": "OFF",
++        "WITH_JPEGXL": "OFF",
++        "WITH_AVIF": "OFF",
++        "WITH_IPP": "OFF",
++        "WITH_LAPACK": "OFF",
++        "WITH_1394": "OFF",
++        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+         # Optimization flags
+         "CV_ENABLE_INTRINSICS": "ON",
+-        "WITH_EIGEN": "ON",
++        "WITH_EIGEN": "OFF",
+         "WITH_PTHREADS": "ON",
+         "WITH_PTHREADS_PF": "ON",
+         # When building tests, by default Bazel builds them in dynamic mode.
+@@ -215,34 +226,8 @@
+         "ENABLE_CCACHE": "OFF",
+     },
+     lib_source = "@opencv//:all",
+-    linkopts = [] if OPENCV_SHARED_LIBS else [
+-        # When using static libraries, the binary that eventually depends on the
+-        # libraries also needs to link in their dependencies, which therefore
+-        # have to be listed here.
+-        # This list depends on which dependencies CMake finds when it configures
+-        # the build, and so depends on what is installed on the local system.
+-        # After building, the linkopts for the current setup can be extracted
+-        # from lib/pkgconfig/opencv.pc in bazel-out
+-        "-ljpeg",
+-        "-lpng",
+-        "-lz",
+-        "-ltiff",
+-        "-lImath",
+-        "-lIlmImf",
+-        "-lIex",
+-        "-lHalf",
+-        "-lIlmThread",
+-        "-ldc1394",
+-        "-lavcodec",
+-        "-lavformat",
+-        "-lavutil",
+-        "-lswscale",
+-        "-lavresample",
+-        "-ldl",
+-        "-lm",
+-        "-lpthread",
+-        "-lrt",
+-    ],
++    # Private C API OpenCV uses memory frames and no external codecs/GUI.
++    linkopts = ["-lz"],
+     out_shared_libs = select({
+         "@bazel_tools//src/conditions:darwin": ["libopencv_%s.%s.dylib" % (module, OPENCV_SO_VERSION) for module in OPENCV_MODULES],
+         # Only the shared objects listed here will be linked in the directory

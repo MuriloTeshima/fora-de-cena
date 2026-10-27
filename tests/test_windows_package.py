@@ -31,7 +31,8 @@ class WindowsPackageTests(unittest.TestCase):
         app.engine = None
         app.scanning = False
         app.devices = [CameraDevice(0, 'OBS Virtual Camera', '', 700)]
-        App.prepare_meet(app)
+        with patch.object(sys, 'platform', 'win32'):
+            App.prepare_meet(app)
         app.dynamic.set.assert_not_called()
         app.background_mode.set.assert_not_called()
 
@@ -41,7 +42,7 @@ class WindowsPackageTests(unittest.TestCase):
             source = base / 'temporary-runtime'
             from shutil import copytree, rmtree
             copytree(Path(__file__).resolve().parents[1] / 'meet_extension', source / 'meet_extension')
-            with patch.object(sys, 'frozen', True, create=True), \
+            with patch.object(sys, 'frozen', True, create=True), patch.object(sys, 'platform', 'win32'), \
                  patch.object(sys, '_MEIPASS', str(source), create=True), \
                  patch.dict('os.environ', {'LOCALAPPDATA': str(base / 'profile')}):
                 destination = extension_folder()
@@ -74,7 +75,7 @@ class WindowsPackageTests(unittest.TestCase):
     def test_frozen_state_is_outside_immutable_resources(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
-            with patch.object(sys, 'frozen', True, create=True), \
+            with patch.object(sys, 'frozen', True, create=True), patch.object(sys, 'platform', 'win32'), \
                  patch.object(sys, '_MEIPASS', str(base / 'readonly-app'), create=True), \
                  patch.dict('os.environ', {'LOCALAPPDATA': str(base / 'profile')}):
                 self.assertEqual(resource_root(), base / 'readonly-app')
@@ -87,7 +88,7 @@ class WindowsPackageTests(unittest.TestCase):
     def test_frozen_pairing_is_unique_per_profile_and_persistent(self):
         from teleport_cam.meet import MeetBridge
         with tempfile.TemporaryDirectory() as folder:
-            with patch.object(sys, 'frozen', True, create=True), \
+            with patch.object(sys, 'frozen', True, create=True), patch.object(sys, 'platform', 'win32'), \
                  patch.dict('os.environ', {'LOCALAPPDATA': folder}):
                 first = MeetBridge(port=0)
                 try:
@@ -125,7 +126,7 @@ class WindowsPackageTests(unittest.TestCase):
         app.engine = None
         app.scanning = False
         app.devices = []
-        with patch('teleport_cam.app.webbrowser.open') as open_site:
+        with patch('teleport_cam.app.webbrowser.open') as open_site, patch.object(sys, 'platform', 'win32'):
             App.prepare_meet(app)
         open_site.assert_called_once_with('https://obsproject.com/download')
         app.backend.set.assert_not_called()

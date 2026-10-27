@@ -26,6 +26,10 @@ startup-error.log
 *.tmp
 *.part
 *.exe
+*.dmg
+*.app/
+*.AppImage
+*.tar.gz
 *.zip
 *.sha256
 SHA256SUMS.txt

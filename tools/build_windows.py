@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 from importlib import metadata
+from packaging.requirements import Requirement
 import json
 import os
 from pathlib import Path
@@ -45,7 +46,7 @@ def check_inventory(folder: Path) -> list[Path]:
     return paths
 
 
-def collect_notices(destination: Path) -> dict[str, str]:
+def collect_notices(destination: Path, python_license: Path | None = None) -> dict[str, str]:
     """Collect installed notices, without pretending that notices resolve GPL compatibility."""
     destination.mkdir(parents=True, exist_ok=True)
     (destination / 'MODELS.txt').unlink(missing_ok=True)  # Superseded pre-review note.
@@ -53,7 +54,14 @@ def collect_notices(destination: Path) -> dict[str, str]:
     for line in (ROOT / 'requirements.lock.txt').read_text().splitlines():
         if not line.strip() or line.startswith('#'):
             continue
-        name, expected = line.split('==')
+        requirement = Requirement(line)
+        if requirement.marker and not requirement.marker.evaluate():
+            continue
+        name = requirement.name
+        pins = list(requirement.specifier)
+        if len(pins) != 1 or pins[0].operator != '==':
+            raise ValueError('O lock exige versões exatas: ' + name)
+        expected = pins[0].version
         distribution = metadata.distribution(name)
         if distribution.version != expected:
             raise ValueError(f'Versão diferente do lock: {name}')
@@ -73,9 +81,9 @@ def collect_notices(destination: Path) -> dict[str, str]:
                 output = target.joinpath(*item.parts[index + 1:])
                 output.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, output)
-    python_license = Path(sys.base_prefix) / 'LICENSE.txt'
+    python_license = python_license or Path(sys.base_prefix) / 'LICENSE.txt'
     if not python_license.is_file():
-        raise FileNotFoundError('Licença do Python não encontrada')
+        raise FileNotFoundError('Licença do Python não encontrada. No build Unix, informe --python-license com a licença da distribuição Python usada.')
     shutil.copyfile(python_license, destination / 'PYTHON-LICENSE.txt')
     for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'packaging/TESTE_LOCAL.txt'):
         shutil.copyfile(ROOT / name, destination / Path(name).name)
@@ -169,7 +177,7 @@ def build(iscc: Path, portable_only: bool = False, single_file: bool = False) ->
                     str(ROOT / 'camera_output' / 'worker.spec')], cwd=ROOT, check=True)
     manifest = {
         'product': 'Fora de Cena', 'version': __version__, 'platform': 'windows-x64',
-        'candidate': 'owner-review', 'distribution_ready': True, 'signed': False,
+        'candidate': 'owner-review', 'distribution_ready': False, 'signed': False,
         'format': 'single-file' if single_file else 'one-folder',
         'pending': ['owner-publication-approval', 'real-camera-and-call-validation'],
         'programs': {'application': 'MIT', 'independent-video-output': 'GPL-2.0-only'},

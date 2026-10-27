@@ -5,6 +5,9 @@
 *.json text eol=lf
 *.md text eol=lf
 *.yml text eol=lf
+*.spec text eol=lf
+*.patch text eol=lf whitespace=-blank-at-eol
+*.txt text eol=lf
 *.bat text eol=crlf
 *.png binary
 *.ico binary

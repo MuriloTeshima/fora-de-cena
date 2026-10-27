@@ -7,6 +7,7 @@ root = Path(SPECPATH).parent
 single_file = os.environ.get('FDC_BUILD_MODE') == 'onefile'
 datas = [
     (str(root / 'assets' / 'brand' / 'app-icon.ico'), 'assets/brand'),
+    (str(root / 'assets' / 'brand' / 'app-icon.png'), 'assets/brand'),
     (str(root / 'meet_extension'), 'meet_extension'),
     (str(root / 'work' / 'bundle-notices'), 'notices'),
     (str(root / 'work' / 'bundle-build.json'), '.'),

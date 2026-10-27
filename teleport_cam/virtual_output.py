@@ -10,17 +10,23 @@ from typing import BinaryIO
 import numpy as np
 from .paths import resource_root
 from .scene import Frame
+from .platform_support import output_choices, system_environment, valid_linux_video_device
 
 
 def output_command() -> list[str]:
     if getattr(sys, 'frozen', False):
-        return [str(resource_root() / 'video_output' / 'ForaDeCenaVideoOutput.exe')]
+        name = 'ForaDeCenaVideoOutput.exe' if sys.platform == 'win32' else 'ForaDeCenaVideoOutput'
+        return [str(resource_root() / 'video_output' / name)]
     return [sys.executable, '-I', str(resource_root() / 'camera_output' / 'main.py')]
 
 
 def output_environment() -> dict[str, str]:
-    environment = {key: value for key, value in os.environ.items()
-                   if key.upper() not in ('PYTHONPATH', 'PYTHONHOME')}
+    allowed = {'PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'HOME',
+               'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'LANG', 'LC_ALL', 'LC_CTYPE',
+               'LD_LIBRARY_PATH', 'LD_LIBRARY_PATH_ORIG', 'LIBPATH', 'LIBPATH_ORIG',
+               'DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR'}
+    source = system_environment() if getattr(sys, 'frozen', False) else os.environ
+    environment = {key: value for key, value in source.items() if key.upper() in allowed}
     # A frozen child is its own program, not a fork using the parent's bundle.
     environment['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
     return environment
@@ -53,10 +59,15 @@ def write_all(stream: BinaryIO, data: memoryview) -> None:
 class VirtualOutput:
     """At most one frame in flight, bounded waits and confirmation after delivery."""
     def __init__(self, width: int, height: int, fps: int, backend: str,
-                 *, dry_run: bool = False, timeout: float = 2.0, startup_timeout: float = 12.0) -> None:
-        if backend not in ('obs', 'unitycapture') or not (2 <= width <= 3840 and 2 <= height <= 2160
+                 *, device: str | None = None, dry_run: bool = False,
+                 timeout: float = 2.0, startup_timeout: float = 12.0) -> None:
+        if backend not in ('obs', 'unitycapture', 'v4l2loopback') or not (2 <= width <= 3840 and 2 <= height <= 2160
                 and width % 2 == 0 and height % 2 == 0 and 1 <= fps <= 120):
             raise ValueError('Formato de saída virtual inválido.')
+        if not dry_run and backend not in output_choices().values():
+            raise ValueError('Câmera virtual incompatível com este sistema.')
+        if device is not None and (backend != 'v4l2loopback' or not valid_linux_video_device(device)):
+            raise ValueError('Dispositivo de saída virtual inválido.')
         self.width, self.height = width, height
         self.timeout = timeout
         self.closed = Event()
@@ -65,6 +76,8 @@ class VirtualOutput:
         self.index = 0
         self.last_crc32: int | None = None
         command = output_command() + ['--width', str(width), '--height', str(height), '--fps', str(fps), '--backend', backend]
+        if device is not None:
+            command.extend(['--device', device])
         if dry_run:
             command.append('--dry-run')
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,

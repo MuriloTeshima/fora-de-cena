@@ -1,5 +1,9 @@
 # Fora de Cena
 
+> **Branch de testes `testing/mac-linux`.** Mac e Linux estão em validação.
+> Os downloads publicados continuam sendo a versão Windows 0.4.0.
+> Veja o [estado dos testes e critérios de lançamento](MULTIPLATAFORMA.md).
+
 ![Fora de Cena — saídas criativas para suas chamadas](assets/brand/readme-cover.png)
 
 Desapareça da webcam com um gesto e reapareça quando quiser. Teleporte, fumaça,
@@ -12,6 +16,10 @@ poeira, pixels, saída de desenho e portal para suas chamadas de vídeo.
 
 > **Versão pública inicial · 0.4.0.** Disponível para avaliação no Windows.
 > Teste a prévia antes de usar em uma reunião importante.
+
+**Mac e Linux:** adaptação experimental em desenvolvimento, com instruções e
+receitas de build em [Mac e Linux](MAC_LINUX.md). Os downloads acima continuam
+sendo Windows; ainda não há pacote nativo aprovado para publicar.
 
 ## Baixar e abrir
 
@@ -147,3 +155,7 @@ Ao redistribuir, ofereça também os pacotes Fontes-Saida e Licencas, com o mesm
 [VanishCam](https://github.com/Nicovic17/vanish_webcam) foi a referência técnica inicial.
 O aplicativo usa implementação própria; não inclui código ou recursos daquele projeto.
 As ilustrações e a identidade visual foram fornecidas pelo mantenedor.
+
+### Verificação de Windows, Mac e Linux
+
+A automação da branch de testes no GitHub testa Windows x64, Mac Apple Silicon e Linux x86_64/ARM64 em runners padrão gratuitos de repositório público. A opção de compilação valida candidatos sem armazenar pacotes ou publicar Releases. Mac Intel possui uma receita experimental de compilação própria do MediaPipe atual, ainda pendente de execução e testes nativos; não há download Intel. Veja [MAC_INTEL.md](MAC_INTEL.md). Consulte os limites, testes reais e instruções em [MAC_LINUX.md](MAC_LINUX.md#automação-gratuita-no-github).

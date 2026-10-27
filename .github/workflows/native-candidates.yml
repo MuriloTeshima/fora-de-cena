@@ -1,0 +1,160 @@
+name: Free native checks and candidates
+
+# Trusted test-branch pushes and manual runs, public repositories only.
+# No PR code, secrets, paid runners, stored artifacts or release permissions.
+# Generated packages are discarded with the VM; main downloads are untouched.
+on:
+  push:
+    branches: ['testing/mac-linux']
+  workflow_dispatch:
+    inputs:
+      build_candidates:
+        description: Also compile experimental candidates and run frozen self-tests (no downloads or Releases)
+        type: boolean
+        default: false
+      build_macos_intel:
+        description: EXPERIMENTAL - compile MediaPipe 1.1.1 from source on Mac Intel, test and attempt a DMG (no stored downloads)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-manual-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  MPLBACKEND: Agg
+  BUILD_CANDIDATES: ${{ github.event_name == 'push' || inputs.build_candidates }}
+  BUILD_INTEL: ${{ github.event_name == 'push' || inputs.build_macos_intel }}
+
+jobs:
+  native:
+    if: github.event.repository.private == false && (github.ref == 'refs/heads/testing/mac-linux' || github.ref == 'refs/heads/main')
+    name: ${{ matrix.target }} - tests and optional build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            target: windows-x64
+            architecture: x64
+          - runner: macos-15
+            target: macos-arm64
+            architecture: arm64
+          - runner: ubuntu-22.04
+            target: linux-x86_64
+            architecture: x64
+          - runner: ubuntu-22.04-arm
+            target: linux-arm64
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14.7'
+          architecture: ${{ matrix.architecture }}
+      - name: Linux system libraries (runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libglib2.0-0 libportaudio2
+      - name: Check pinned dependencies without executing packages
+        run: |
+          python -m pip install --only-binary=:all: packaging==26.3
+          python tools/check_platform_wheels.py ${{ matrix.target }} --report work/wheels.json
+      - name: Build reviewed minimal OpenCV in a separate environment
+        if: runner.os == 'macOS' && env.BUILD_CANDIDATES == 'true'
+        run: |
+          python tools/prepare_minimal_opencv.py
+          python -m venv work/opencv-build-env
+          work/opencv-build-env/bin/python -m pip install --only-binary=:all: -r requirements-opencv-build.txt
+          work/opencv-build-env/bin/python tools/build_minimal_opencv.py --source work/opencv-minimal/source/opencv_contrib_python-4.14.0.94
+      - name: Install pinned application dependencies
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" && "$BUILD_CANDIDATES" == "true" ]]; then
+            python -m pip install --only-binary=:all: work/opencv-minimal/wheels/*.whl -r requirements.lock.txt -r requirements-build.txt
+          else
+            python -m pip install --only-binary=:all: -r requirements.lock.txt -r requirements-build.txt
+          fi
+          python -m pip check
+      - name: Synthetic tests (no camera)
+        env:
+          FDC_TEST_MINIMAL_OPENCV: ${{ runner.os == 'macOS' && env.BUILD_CANDIDATES == 'true' && '1' || '' }}
+        run: |
+          python -m unittest discover -s tests -q
+          node --test tests/meet_extension.test.mjs
+      - name: Models and source diagnostic
+        run: |
+          python setup_models.py
+          python main.py --self-test --report work/source-self-test.json
+      - name: Compile and self-test experimental candidate on native runner
+        if: env.BUILD_CANDIDATES == 'true'
+        run: |
+          python tools/fetch_distribution_sources.py
+          python tools/ci_native.py build
+      - name: Summary (no stored binary artifacts)
+        if: always()
+        run: python tools/ci_native.py summary --target ${{ matrix.target }}
+
+  intel-probe:
+    if: github.event.repository.private == false && (github.ref == 'refs/heads/testing/mac-linux' || github.ref == 'refs/heads/main')
+    name: macos-x86_64 - probe and optional experimental source build
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14.7'
+          architecture: x64
+      - name: Install metadata checker
+        run: |
+          python -m pip install --only-binary=:all: packaging==26.3
+      - name: Probe current Intel binary dependencies (failure is reported, never downgraded)
+        id: compatibility
+        continue-on-error: true
+        run: python tools/check_platform_wheels.py macos-x86_64 --report work/wheels.json
+      - name: Explicit blocked status
+        if: steps.compatibility.outcome == 'failure' && env.BUILD_INTEL != 'true'
+        run: echo '::warning::Mac Intel is BLOCKED by incompatible pinned dependencies. No working app or candidate is claimed.'
+      - name: Compile current MediaPipe C API for Intel (experimental)
+        if: env.BUILD_INTEL == 'true'
+        run: |
+          python -m pip install --only-binary=:all: macholib==1.16.4 altgraph==0.17.5
+          python tools/build_mediapipe_intel.py
+      - name: Install the explicit custom Intel wheel and locked application
+        if: env.BUILD_INTEL == 'true'
+        run: |
+          python -m pip install --only-binary=:all: work/mediapipe-intel/wheels/*.whl -r requirements.lock.txt -r requirements-build.txt
+          python -m pip check
+      - name: Intel source tests and inference (no camera)
+        if: env.BUILD_INTEL == 'true'
+        run: |
+          python -m unittest discover -s tests -q
+          node --test tests/meet_extension.test.mjs
+          python setup_models.py
+          python main.py --self-test --report work/intel-source-self-test.json
+      - name: Attempt Intel DMG and frozen diagnostic
+        if: env.BUILD_INTEL == 'true'
+        run: |
+          python tools/fetch_distribution_sources.py
+          python tools/ci_native.py build
+      - name: Intel summary
+        if: always()
+        run: python tools/ci_native.py summary --target macos-x86_64

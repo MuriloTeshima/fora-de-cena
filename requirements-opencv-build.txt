@@ -1,0 +1,11 @@
+# Only for .venv-opencv-build; not application runtime dependencies.
+# Exact source pyproject requires NumPy 2.3.2 on Python 3.14 and setuptools <70.
+pip==26.2.2
+packaging==26.3
+scikit-build==0.19.1
+setuptools==69.5.1
+wheel==0.45.1
+cmake==3.31.10
+ninja==1.13.2
+numpy==2.3.2
+distro==1.9.0

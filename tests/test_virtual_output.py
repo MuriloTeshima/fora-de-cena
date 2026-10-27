@@ -49,7 +49,7 @@ class RawVideoTests(unittest.TestCase):
                     read_message(BytesIO(message))
 
     def test_frozen_child_uses_its_own_bundle_environment(self):
-        with patch.object(sys, 'frozen', True, create=True), patch.object(sys, '_MEIPASS', 'C:/package', create=True):
+        with patch.object(sys, 'frozen', True, create=True), patch.object(sys, '_MEIPASS', 'C:/package', create=True), patch.object(sys, 'platform', 'win32'):
             self.assertEqual(Path(output_command()[0]), Path('C:/package/video_output/ForaDeCenaVideoOutput.exe'))
         self.assertEqual(output_environment()['PYINSTALLER_RESET_ENVIRONMENT'], '1')
 

@@ -28,8 +28,22 @@ def runtime_signature(root: Path = ROOT) -> str:
     paths = list((root / 'teleport_cam').glob('*.py'))
     paths += [root / 'main.py', root / 'camera_output' / 'main.py', root / 'camera_output' / 'worker.spec',
               root / 'packaging' / 'fora_de_cena.spec', root / 'requirements.lock.txt']
+    for relative in ('packaging/fora_de_cena_unix.spec', 'tools/build_unix.py', 'tools/macos_bundle.py', 'requirements-build.txt',
+                     'requirements-opencv-build.txt', 'tools/build_minimal_opencv.py',
+                     'tools/distribution_licenses.py', 'tools/package_release.py',
+                     'tools/opencv_artifact.py', 'packaging/opencv-minimal-profile.json',
+                     'packaging/opencv-minimal-source.patch'):
+        if (root / relative).is_file():
+            paths.append(root / relative)
+    for relative in ('tools/build_mediapipe_intel.py', 'tools/mediapipe_intel.py',
+                     'packaging/mediapipe-intel-profile.json', 'packaging/mediapipe-intel-source.patch'):
+        if (root / relative).is_file():
+            paths.append(root / relative)
+    paths += list((root / "packaging/notices/opencv-minimal").glob("*"))
     result = hashlib.sha256()
-    for path in sorted(paths):
+    # Path ordering is case-insensitive on Windows and case-sensitive on macOS.
+    # Use the portable relative spelling so identical sources share one signature.
+    for path in sorted(paths, key=lambda item: item.relative_to(root).as_posix()):
         result.update(path.relative_to(root).as_posix().encode('utf-8'))
         result.update(path.read_bytes().replace(b'\r\n', b'\n'))
     return result.hexdigest()
@@ -96,7 +110,7 @@ def package_compliance(output: Path, version: str, notices: Path) -> list[Path]:
     distribution = metadata.distribution('pyvirtualcam')
     manifest['unmodified_upstream_native_binaries'] = [
         {'path': str(item).replace('\\', '/'), 'sha256': sha256(Path(distribution.locate_file(item)))}
-        for item in distribution.files or () if item.suffix == '.pyd']
+        for item in distribution.files or () if item.suffix in ('.pyd', '.so', '.dylib')]
     with zipfile.ZipFile(sources, 'w', zipfile.ZIP_DEFLATED) as archive:
         for path, name in entries:
             archive.write(path, name)

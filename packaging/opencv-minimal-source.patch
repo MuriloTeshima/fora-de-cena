@@ -1,0 +1,61 @@
+--- a/opencv/cmake/OpenCVUtils.cmake
++++ b/opencv/cmake/OpenCVUtils.cmake
+@@ -948,6 +948,9 @@
+ 
+ set(OPENCV_BUILD_INFO_STR "" CACHE INTERNAL "")
+ function(ocv_output_status msg)
++  if(DEFINED FDC_BUILD_PATH_PREFIX)
++    string(REPLACE "${FDC_BUILD_PATH_PREFIX}" "/usr/src/fora-de-cena" msg "${msg}")
++  endif()
+   message(STATUS "${msg}")
+   string(REPLACE "\\" "\\\\" msg "${msg}")
+   string(REPLACE "\"" "\\\"" msg "${msg}")
+--- a/opencv/modules/core/CMakeLists.txt
++++ b/opencv/modules/core/CMakeLists.txt
+@@ -258,6 +258,11 @@
+ #define OPENCV_INSTALL_DATA_DIR_RELATIVE ${OPENCV_INSTALL_DATA_DIR_RELATIVE_STR}
+ ")
+ 
++# Do not embed this workstation's paths in sample-data lookup fallbacks.
++if(DEFINED FDC_BUILD_PATH_PREFIX)
++  string(REPLACE "${FDC_BUILD_PATH_PREFIX}" "/usr/src/fora-de-cena" OPENCV_DATA_CONFIG_STR "${OPENCV_DATA_CONFIG_STR}")
++endif()
++
+ if(EXISTS "${OPENCV_DATA_CONFIG_FILE}")
+   file(READ "${OPENCV_DATA_CONFIG_FILE}" __content)
+ endif()
+--- a/opencv/modules/python/src2/typing_stubs_generation/api_refinement.py
++++ b/opencv/modules/python/src2/typing_stubs_generation/api_refinement.py
+@@ -10,7 +10,7 @@
+                     TupleTypeNode, UnionTypeNode, ProtocolClassNode,
+                     DictTypeNode, ClassTypeNode, AliasRefTypeNode)
+ from .ast_utils import (find_function_node, SymbolName,
+-                        for_each_function_overload)
++                        for_each_function_overload, ScopeNotFoundError, SymbolNotFoundError)
+ from .types_conversion import create_type_node
+ 
+ 
+@@ -24,6 +24,11 @@
+     builtin_exception.is_exported = False
+     root.add_class("error", (builtin_exception, ), ERROR_CLASS_PROPERTIES)
+     for symbol_name, refine_symbol in NODES_TO_REFINE.items():
++        # Optional modules may be excluded from BUILD_LIST.
++        try:
++            find_function_node(root, symbol_name)
++        except (ScopeNotFoundError, SymbolNotFoundError):
++            continue
+         refine_symbol(root, symbol_name)
+     version_constant = root.add_constant("__version__", "<unused>")
+     version_constant._value_type = "str"
+--- a/opencv/modules/python/src2/typing_stubs_generation/generation.py
++++ b/opencv/modules/python/src2/typing_stubs_generation/generation.py
+@@ -822,6 +822,9 @@
+         # e.g. GArgs requires G-API module, so if build without G-API GArgs is not included
+         if not has_all_required_modules(node):
+             continue
++        # These aliases belong to features2d, which may be excluded by BUILD_LIST.
++        if node.ctype_name in ("FeatureDetector", "DescriptorExtractor", "FeatureExtractor") and "Feature2D" not in root.classes:
++            continue
+         node.resolve(root)
+         if isinstance(node, AliasTypeNode):
+             register_alias(node)
