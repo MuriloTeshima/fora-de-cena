@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import shlex
 import subprocess
 import sys
 import zipfile
@@ -15,6 +16,11 @@ ROOT=Path(__file__).resolve().parents[1]
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def public_cmake_flags(flags, prefix, home):
+    return {key: value.replace(prefix, '/usr/src/fora-de-cena').replace(
+        home, '/usr/src/fora-de-cena-build-home') for key, value in flags.items()}
 
 
 def main():
@@ -45,9 +51,11 @@ def main():
     flags={**profile['cmake_common_candidate'],**profile['cmake_platform_candidates']['darwin'],
            **profile['cmake_additions']}
     prefix=str(ROOT)
-    flags.update(FDC_BUILD_PATH_PREFIX=prefix,
-        CMAKE_C_FLAGS=f'-ffile-prefix-map={prefix}=/usr/src/fora-de-cena',
-        CMAKE_CXX_FLAGS=f'-ffile-prefix-map={prefix}=/usr/src/fora-de-cena')
+    home=str(Path.home())
+    mapped_flags=shlex.join([f'-ffile-prefix-map={prefix}=/usr/src/fora-de-cena',
+                            f'-ffile-prefix-map={home}=/usr/src/fora-de-cena-build-home'])
+    flags.update(FDC_BUILD_PATH_PREFIX=prefix,FDC_BUILD_HOME_PREFIX=home,
+        CMAKE_C_FLAGS=mapped_flags,CMAKE_CXX_FLAGS=mapped_flags)
     work=ROOT/'work/opencv-minimal'
     wheels=work/'wheels'
     wheels.mkdir(exist_ok=True)
@@ -55,7 +63,7 @@ def main():
         raise RuntimeError('Wheel directory must be empty; never reuse a wheel from another configuration.')
     environment=dict(os.environ)
     environment.update(profile['package_environment'])
-    environment.update(CMAKE_ARGS=' '.join(f'-D{k}={v}' for k,v in sorted(flags.items())),
+    environment.update(CMAKE_ARGS=shlex.join(f'-D{k}={v}' for k,v in sorted(flags.items())),
         CMAKE_GENERATOR='Ninja',CMAKE_BUILD_PARALLEL_LEVEL='4',
         MACOSX_DEPLOYMENT_TARGET='15.0',OPENCV_PYTHON_SKIP_GIT_COMMANDS='1',
         PATH=str(Path(sys.executable).parent)+':/usr/bin:/bin:/usr/sbin:/sbin',
@@ -76,7 +84,7 @@ def main():
     record={'profile_id':profile['profile_id'],'custom_build':True,'distribution_ready':False,
             'source':source_info,'source_patch_sha256':digest(ROOT/'packaging/opencv-minimal-source.patch'),
             'profile_sha256':digest(profile_path),'build_tools':versions,
-            'cmake':{k:v.replace(prefix,'/usr/src/fora-de-cena') for k,v in flags.items()},
+            'cmake':public_cmake_flags(flags,prefix,home),
             'wheel':{'filename':built[0].name,'sha256':digest(built[0]),'size':built[0].stat().st_size},
             'build_driver_sha256':digest(Path(__file__)),
             'downloaded_components':[{'component':'KleidiCV','version':'26.03',

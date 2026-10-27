@@ -87,10 +87,12 @@ def main() -> None:
                '--copt=-DNDEBUG', '--copt=-DLITERT_DISABLE_NPU', '--apple_generate_dsym=false',
                '--copt=-ffile-prefix-map=' + str(ROOT) + '=/usr/src/fora-de-cena',
                '--cxxopt=-ffile-prefix-map=' + str(ROOT) + '=/usr/src/fora-de-cena',
+               '--copt=-ffile-prefix-map=' + str(Path.home()) + '=/usr/src/fora-de-cena-build-home',
+               '--cxxopt=-ffile-prefix-map=' + str(Path.home()) + '=/usr/src/fora-de-cena-build-home',
                profile['build_target']]
     subprocess.run(command, cwd=source, env=environment, check=True, timeout=90 * 60)
     native = work / 'libmediapipe.dylib'
-    shutil.copyfile(source / 'bazel-bin/mediapipe/tasks/c/mediapipe_source', native)
+    shutil.copyfile(source / 'bazel-bin/mediapipe/tasks/c/libmediapipe_source.dylib', native)
     subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(native)], check=True)
     wheel = make_wheel(template, native, work / 'wheels', profile)
     record = {'custom_build': True, 'experimental': True, 'distribution_ready': False,

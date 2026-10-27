@@ -1,24 +1,30 @@
 --- a/opencv/cmake/OpenCVUtils.cmake
 +++ b/opencv/cmake/OpenCVUtils.cmake
-@@ -948,6 +948,9 @@
+@@ -948,6 +948,12 @@
  
  set(OPENCV_BUILD_INFO_STR "" CACHE INTERNAL "")
  function(ocv_output_status msg)
 +  if(DEFINED FDC_BUILD_PATH_PREFIX)
 +    string(REPLACE "${FDC_BUILD_PATH_PREFIX}" "/usr/src/fora-de-cena" msg "${msg}")
 +  endif()
++  if(DEFINED FDC_BUILD_HOME_PREFIX)
++    string(REPLACE "${FDC_BUILD_HOME_PREFIX}" "/usr/src/fora-de-cena-build-home" msg "${msg}")
++  endif()
    message(STATUS "${msg}")
    string(REPLACE "\\" "\\\\" msg "${msg}")
    string(REPLACE "\"" "\\\"" msg "${msg}")
 --- a/opencv/modules/core/CMakeLists.txt
 +++ b/opencv/modules/core/CMakeLists.txt
-@@ -258,6 +258,11 @@
+@@ -258,6 +258,14 @@
  #define OPENCV_INSTALL_DATA_DIR_RELATIVE ${OPENCV_INSTALL_DATA_DIR_RELATIVE_STR}
  ")
  
 +# Do not embed this workstation's paths in sample-data lookup fallbacks.
 +if(DEFINED FDC_BUILD_PATH_PREFIX)
 +  string(REPLACE "${FDC_BUILD_PATH_PREFIX}" "/usr/src/fora-de-cena" OPENCV_DATA_CONFIG_STR "${OPENCV_DATA_CONFIG_STR}")
++endif()
++if(DEFINED FDC_BUILD_HOME_PREFIX)
++  string(REPLACE "${FDC_BUILD_HOME_PREFIX}" "/usr/src/fora-de-cena-build-home" OPENCV_DATA_CONFIG_STR "${OPENCV_DATA_CONFIG_STR}")
 +endif()
 +
  if(EXISTS "${OPENCV_DATA_CONFIG_FILE}")

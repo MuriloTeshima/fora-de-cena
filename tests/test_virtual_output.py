@@ -88,7 +88,7 @@ class OutputProcessTests(unittest.TestCase):
         began = time.monotonic()
         with patch('teleport_cam.virtual_output.output_command', return_value=command):
             with self.assertRaises(RuntimeError):
-                VirtualOutput(16, 16, 30, 'obs', startup_timeout=.1)
+                VirtualOutput(16, 16, 30, 'obs', dry_run=True, startup_timeout=.1)
         self.assertLess(time.monotonic() - began, 4)
 
     def test_stream_that_stops_reading_cannot_hang_the_video_thread(self):
@@ -96,7 +96,7 @@ class OutputProcessTests(unittest.TestCase):
         code = f'import time; print({ready!r}, flush=True); time.sleep(20)'
         command = [sys.executable, '-I', '-c', code]
         with patch('teleport_cam.virtual_output.output_command', return_value=command):
-            output = VirtualOutput(1280, 720, 30, 'obs', timeout=.1)
+            output = VirtualOutput(1280, 720, 30, 'obs', dry_run=True, timeout=.1)
         began = time.monotonic()
         with self.assertRaises(RuntimeError):
             output.send(np.zeros((720, 1280, 3), np.uint8))

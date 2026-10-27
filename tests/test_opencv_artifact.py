@@ -8,6 +8,15 @@ from tools.opencv_artifact import ROOT, digest, validate_artifact, inspect_runti
 
 
 class OpenCVArtifactTests(unittest.TestCase):
+    def test_public_provenance_redacts_project_and_python_toolchain_home_paths(self):
+        from tools.build_minimal_opencv import public_cmake_flags
+        flags = {'project': '/fixture-build-home/work/project/source',
+                 'python': '/fixture-build-home/hostedtoolcache/Python/3.14',
+                 'option': 'ON'}
+        public = public_cmake_flags(flags, '/fixture-build-home/work/project', '/fixture-build-home')
+        self.assertFalse(any('/fixture-build-home' in value for value in public.values()))
+        self.assertEqual(public['option'], 'ON')
+
     def test_symbol_inventory_reads_utf8_sources_on_windows(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

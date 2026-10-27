@@ -60,3 +60,14 @@ A tag `v0.4.0` não será movida ou sobrescrita. A primeira candidata pode usar
 uma versão como `v0.5.0-beta.1`; o lançamento dependerá da validação e indicará
 somente as plataformas efetivamente aprovadas. Intel pode seguir experimental
 se exigir mais trabalho. `distribution_ready=false` permanece durante os testes.
+
+## Primeira execução nativa — 27/10/2026
+
+[Execução inicial](https://github.com/arantes-gabs/fora-de-cena/actions/runs/40584483138). Nenhum pacote foi publicado.
+
+- Linux x64/ARM64: os testes identificaram dois casos de timeout que usavam backend OBS real; corrigidos para modo de teste sem câmera.
+- Windows: fontes e compilação do EXE passaram; o diagnóstico recusou o layout Tk 9 com recursos ZIP dentro da DLL. A validação agora reconhece esse layout, mantendo a exigência dos scripts Tk.
+- Apple Silicon: o OpenCV enxuto compilou, mas a barreira de privacidade detectou caminhos do usuário padrão `runner` do GitHub na biblioteca. O remapeamento foi estendido ao diretório do toolchain e à proveniência; a barreira continua ativa.
+- Intel: a compilação avançou até o OpenCV privado. O teste de link C++ falhou por caminho relativo do wrapper Apple no CMake. A receita foi ajustada com base no código da versão fixada do rules_foreign_cc.
+
+Estas correções precisam passar por nova execução. Suporte nativo e distribuição continuam pendentes.

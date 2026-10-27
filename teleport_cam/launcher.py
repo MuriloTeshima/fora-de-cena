@@ -21,6 +21,7 @@ def self_test() -> dict[str, object]:
     from .gesture_guides import GUIDES
     from .model_assets import MODEL_ASSETS
     from .effects import AnimeTeleportEffect, Silhouette
+    from .tk_resources import verify_tk_data
     from setup_models import verify_model
     from .virtual_output import VirtualOutput, output_command, output_environment
     import subprocess
@@ -32,9 +33,7 @@ def self_test() -> dict[str, object]:
     font_root = Path(customtkinter.__file__).resolve().parent / 'assets' / 'fonts'
     for name in ('Roboto-Regular.ttf', 'Roboto-Medium.ttf'):
         ImageFont.truetype(str(font_root / 'Roboto' / name), 12)
-    if getattr(sys, 'frozen', False):
-        if not (root / '_tk_data' / 'tk.tcl').is_file():
-            raise FileNotFoundError('Dados Tk da interface')
+    tk_data_layout = verify_tk_data(root) if getattr(sys, 'frozen', False) else 'development'
     for name, (_, digest) in MODEL_ASSETS.items():
         verify_model(root / 'models' / name, digest)
     for name in {guide.image for guide in GUIDES.values()}:
@@ -90,6 +89,7 @@ def self_test() -> dict[str, object]:
     return {'ok': True, 'version': __version__, 'frozen': bool(getattr(sys, 'frozen', False)),
             'runtime_signature': signature,
             'tcl_version': tcl_version,
+            'tk_data_layout': tk_data_layout,
             'checks': ['imports', 'tcl_runtime', 'tk_data', 'fonts', 'assets', 'model_hashes', 'hand_face_inference', 'segmentation', 'teleport_compositor', 'independent_output_process', 'rawvideo_fidelity'],
             'camera_opened': False, 'application_network_requests': False,
             'dependency_network_verified': False, 'virtual_output_tested': False}

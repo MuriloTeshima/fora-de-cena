@@ -8,6 +8,7 @@ __pycache__/
 .coverage
 htmlcov/
 work/
+.local/
 build/
 dist/
 models/
@@ -22,6 +23,7 @@ startup-error.log
 *.key
 *.pfx
 *.p12
+*.dpapi
 *.log
 *.tmp
 *.part
